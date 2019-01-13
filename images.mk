@@ -1,0 +1,68 @@
+##############################
+#
+# Setup test images and check target
+#
+
+#URLS of images to test
+IMAGE_URLS= 	mnist/1.png \
+	        	mnist/2.png \
+	        	mnist/3.png \
+	        	mnist/4.png \
+	        	mnist/5.png \
+	        	mnist/6.png \
+	        	mnist/7.png \
+	        	mnist/8.png \
+	        	mnist/9.png \
+
+#Classification index of test images (in order)
+CLASS_IDX=  	7\
+				2\
+				1\
+				0\
+				4\
+				1\
+				4\
+				9\
+				5
+
+
+# Getters
+JOINED   = $(join $(addsuffix @,$(IMAGE_URLS)),$(CLASS_IDX))
+GET_IMG  = $(word 1,$(subst @, ,$1))
+GET_IDX  = $(word 2,$(subst @, ,$1))
+
+#Bash coloring
+RED=\033[0;31m
+GREEN=\033[0;32m
+NC=\033[0m
+
+#$1=IMG_FILE $2=IDX $3=CHECK
+define IMAGE_BUILD_RULES
+
+#check if correct class is identified. If not error
+$3:$1 $(EXE)
+	@echo "Evaluating image $1"
+	./$(EXE) $1 | tee $3
+	@grep -q "Detected class: $(strip $2)" $3 && printf "$(GREEN)correctly identified image $1$(NC)\n" ||  (printf "$(RED)Did not correctly identify image $1$(NC)\n"; rm -f $3; exit 1)
+
+endef
+
+#check if all images are classified correctly
+check_all: $(foreach URL, $(IMAGE_URLS), check_$(basename $(notdir $(URL))))
+	@printf "$(GREEN)All correct!$(NC)\n"
+
+#define build rules for all images
+$(foreach j,$(JOINED),$(eval $(call IMAGE_BUILD_RULES,\
+	$(call GET_IMG,$j),\
+	$(call GET_IDX,$j),\
+	check_$(basename $(notdir $(call GET_IMG,$j)))\
+)))
+
+##downloaded images
+#CLEAN+=$(foreach URL, $(IMAGE_URLS), $(notdir $(URL)))
+#
+##converted images
+#CLEAN+=$(foreach URL, $(IMAGE_URLS), converted_$(basename $(notdir $(URL))).png)
+
+#check files
+CLEAN+=$(foreach URL, $(IMAGE_URLS), check_$(basename $(notdir $(URL))))

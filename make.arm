@@ -1,0 +1,54 @@
+##General flags
+CC=arm-linux-gnueabihf-gcc
+CFLAGS+= -Wall -O3 -std=c99 -march=armv7-a -mfpu=neon-vfpv4 -ffast-math
+LDFLAGS+= -flto -static -lpng -lz -lc -lm
+
+ifeq ($(CC),gcc)
+CFLAGS+= -std=c99
+endif
+
+#pass some flags through to gcc when defined
+ifdef DEBUG
+CFLAGS+= -DDEBUG -g
+endif
+ifdef SILENT
+CFLAGS+= -DSILENT
+endif
+ifdef TIMING
+CFLAGS+= -DTIMING
+endif
+
+SRCS=$(wildcard *.c)
+OBJS=$(SRCS:.c=.o)
+DEPS=$(OBJS:.o=.d)
+EXE=lenet.arm
+
+default:clean check_1
+
+#include file that defines checks for a set of verification images
+include images.mk.arm
+check:check_all
+
+#link the executable
+.PRECIOUS:$(EXE)
+$(EXE):$(OBJS)
+	$(CC) $^  -o $@ $(LDFLAGS) $(CFLAGS)
+
+#compile c files
+%.o:%.c
+	$(CC) -MMD -MF $(subst .o,.d,$@) $(INCLUDES) -c $(CFLAGS) $< -o $@
+
+#build dependency files if we are not cleaning
+ifneq ($(filter clean,$(MAKECMDGOALS)),clean)
+-include $(DEPS)
+endif
+
+CLEAN+=$(OBJS) $(DEPS) $(EXE) check $(ZIPFILE)
+
+ifdef DEBUG
+#add extra cleanup when debug is set (to clean up dumped blobs)
+CLEAN+= *.txt *.bin
+endif
+
+clean:
+	@rm -f $(CLEAN)
